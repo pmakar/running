@@ -24,8 +24,25 @@ td[contenteditable=true]:focus,div[contenteditable=true]:focus,span[contentedita
 .tabPanel{display:none}.tabPanel.active{display:block}.foodgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px}.recipe{background:#10151b;border:1px solid var(--line);border-radius:12px;padding:12px}.recipe h3{margin:0 0 8px;font-size:16px}.recipe ul{margin:8px 0 0 20px;padding:0}.shopping{columns:2}.anchorTarget{scroll-margin-top:12px}.recipeCard{background:#10151b;border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}.recipeCard h3{margin:0 0 6px}.recipeCard button{padding:6px 8px;margin:3px}.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99;padding:20px;overflow:auto}.modal.active{display:block}.modalBox{max-width:780px;margin:20px auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}.modalBox h2{margin-top:0}.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:4px 8px;margin:2px;color:var(--muted);font-size:12px}
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.week summary{grid-template-columns:1fr;gap:6px}.foodgrid{grid-template-columns:1fr}.shopping{columns:1}}
 </style>
+
+<style>
+#loginOverlay{position:fixed;inset:0;background:#0d0f12;display:flex;align-items:center;justify-content:center;z-index:99999}
+#loginBox{background:#171b20;padding:24px;border-radius:16px;border:1px solid #2a313a;width:340px}
+#loginBox input{width:100%;margin:6px 0;padding:10px}
+#loginError{color:#ff7a18;font-size:13px}
+</style>
 </head>
 <body>
+<div id="loginOverlay">
+  <div id="loginBox">
+    <h2>Login Required</h2>
+    <input id="u" placeholder="Username">
+    <input id="p" type="password" placeholder="Password">
+    <button onclick="checkLogin()">Login</button>
+    <div id="loginError"></div>
+  </div>
+</div>
+
 <div class="wrap">
 <h1>Zero-to-Marathon Weekly Planner</h1>
 <p>Locked plan: starts from 1 km continuous running, builds to a June 2027 marathon, and reduces from 110 kg to 87 kg. Weight targets are weekly only.</p>
@@ -33,15 +50,15 @@ td[contenteditable=true]:focus,div[contenteditable=true]:focus,span[contentedita
 <div class="grid">
 <div class="card"><b>Start date</b><span class="big" id="startDateText"></span></div>
 <div class="card"><b>Race date</b><span class="big" id="raceDateText"></span></div>
-<div class="card"><b>Plan start weight</b><span class="big" id="startWeightText"></span></div>
+<div class="card"><b>Default start weight</b><span class="big" id="startWeightText"></span></div>
 <div class="card"><b>Target weight</b><span class="big" id="targetWeightText"></span></div>
-<div class="card"><b>Your current weight</b><input id="userWeight" type="number" min="40" max="250" step="0.1" placeholder="kg" oninput="saveProfileAndRender()"></div>
+<div class="card"><b>Your starting weight</b><input id="userWeight" type="number" min="40" max="250" step="0.1" placeholder="kg" oninput="saveProfileAndRender()"></div>
 <div class="card"><b>Your height</b><input id="userHeight" type="number" min="120" max="230" step="1" placeholder="cm" oninput="saveProfileAndRender()"></div>
 <div class="card"><b>Total weeks</b><span class="big" id="totalWeeksText"></span></div>
 <div class="card"><b>Today calories</b><span class="big" id="todayCaloriesText"></span></div>
 </div>
 
-<div class="note">Start date, race date, plan start kg and target kg are fixed. Enter your current weight and height to calculate calorie targets. Recipes stay the same; only calorie numbers adjust.</div>
+<div class="note">Start date, race date, plan start kg and target kg are fixed. Enter your starting weight and height to calculate calorie targets and weekly weight goals. Recipes stay the same; only calorie numbers adjust.</div>
 
 <div class="tabs">
 <button class="tab active" onclick="showTab('training')">Training</button>
@@ -104,7 +121,15 @@ function calorieTargetFor(type,w){
   return Math.max(1800,Math.round(target/25)*25);
 }
 function phaseForWeek(w){if(w<=4)return"Walking habit";if(w<=12)return"Walk/run foundation";if(w<=20)return"5k to 10k base";if(w<=32)return"10k base building";if(w<=42)return"Half-marathon endurance";if(w<=51)return"Marathon build";if(w<=54)return"Peak long runs";return"Taper"}
-function weeklyWeightTarget(w){const p=Math.min(1,(w-1)/(totalWeeks-1));const curved=p<.55?p*1.13:.6215+(p-.55)*.841;const kg=CONFIG.startKg-(CONFIG.startKg-CONFIG.targetKg)*Math.min(1,curved);return Math.max(CONFIG.targetKg,kg)}
+function weeklyWeightTarget(w){
+const profile=loadProfile ? loadProfile() : {};
+const startKg=parseFloat(profile.weight)||CONFIG.startKg;
+const targetKg=CONFIG.targetKg;
+const p=Math.min(1,(w-1)/(totalWeeks-1));
+const curved=p<.55?p*1.13:.6215+(p-.55)*.841;
+const kg=startKg-(startKg-targetKg)*Math.min(1,curved);
+return Math.max(targetKg,kg)
+}
 function caloriesForDay(type,w){return calorieTargetFor(type,w)}
 function longRunKm(w){if(w<=4)return 0;if(w<=12)return 2+(w-5)*.5;if(w<=20)return 5+(w-13)*.7;if(w<=32)return 10+(w-21)*.55;if(w<=42)return 16+(w-33)*.7;if(w<=51)return 22+(w-43)*1.1;if(w<=54)return[30,24,32][w-52]||26;return Math.max(8,26-(w-55)*7)}
 function sessionsForWeek(w){let days=[["Mon","Rest","Rest + 10 min mobility"],["Tue","Run","Walk/run 30 min"],["Wed","Walk","Brisk walk 45 min"],["Thu","Run","Walk/run 30 min"],["Fri","Rest","Rest + light stretching"],["Sat","Walk","Long walk 60 min"],["Sun","Long","Easy long walk/run"]];
@@ -118,6 +143,7 @@ else{const t=Math.max(3,8-(w-55)*2);days[1][2]=`Easy run ${t} km`;days[3][1]="Ru
 function weeklyKmEstimate(days){let sum=0;for(const d of days){const m=d[2].match(/(\d+(?:\.\d+)?)\s*km/g);if(m)sum+=Math.max(...m.map(x=>parseFloat(x)))}return Math.round(sum)}
 function loadEdits(){try{return JSON.parse(localStorage.getItem("marathonWeeklyEditsV2")||"{}")}catch(e){return{}}}function saveEdits(e){localStorage.setItem("marathonWeeklyEditsV2",JSON.stringify(e))}let edits=loadEdits();
 function setEditableListener(el,key){el.addEventListener("input",()=>{edits[key]=el.innerText;saveEdits(edits)})}
+function saveWeeklyWeight(el){edits[el.dataset.weightKey]=el.value;saveEdits(edits)}
 function showTab(id){document.querySelectorAll(".tabPanel").forEach(p=>p.classList.remove("active"));document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));document.getElementById(id).classList.add("active");event.target.classList.add("active")}
 function goToday(){
 const w=currentWeek();
@@ -198,7 +224,9 @@ const root=document.getElementById("weeks"),foodRoot=document.getElementById("fo
 for(let w=1;w<=totalWeeks;w++){
 const start=addDays(dateObj(CONFIG.startDate),(w-1)*7),end=addDays(start,6),phase=phaseForWeek(w),targetKg=weeklyWeightTarget(w).toFixed(1),days=sessionsForWeek(w),km=weeklyKmEstimate(days),pct=Math.round((w/totalWeeks)*100);
 const details=document.createElement("details");details.className="week anchorTarget";details.id=`week_${w}`;if(w<=2||w===currentWeek())details.open=true;
-details.innerHTML=`<summary><div><span class="badge">Week ${w}</span></div><div><b>${fmtDate(start)} - ${fmtDate(end)}</b><br><span class="phase">${phase}</span></div><div>Weight goal: <b>${targetKg} kg</b><br><span class="small">weekly only</span></div><div>Training: <b>~${km} km</b><br><span class="small">estimate</span></div><div><span class="small">${pct}% through plan</span><div class="progress"><div style="width:${pct}%"></div></div></div></summary><div class="tablewrap"><table><thead><tr><th>Date</th><th>Day</th><th>Type</th><th>Training</th><th>Calories</th><th>Protein</th><th>Meal plan</th><th>Done?</th><th>Notes</th></tr></thead><tbody></tbody></table></div><div class="card"><span class="badge">Weekly weight goal: ${targetKg} kg</span> <span class="badge">Actual weight: <span contenteditable="true" id="actual_${w}">${edits[`w${w}_actual`]||""}</span></span><p class="small">Week notes</p><div contenteditable="true" id="notes_${w}" style="min-height:45px;background:#101820;border:1px solid var(--line);border-radius:10px;padding:10px">${edits[`w${w}_notes`]||""}</div></div>`;
+details.innerHTML=`<summary><div><span class="badge">Week ${w}</span></div><div><b>${fmtDate(start)} - ${fmtDate(end)}</b><br><span class="phase">${phase}</span></div><div>Weight goal: <b>${targetKg} kg</b><br><span class="small">weekly only</span></div><div>Training: <b>~${km} km</b><br><span class="small">estimate</span></div><div><span class="small">${pct}% through plan</span><div class="progress"><div style="width:${pct}%"></div></div></div></summary><div class="tablewrap"><table><thead><tr><th>Date</th><th>Day</th><th>Type</th><th>Training</th><th>Calories</th><th>Protein</th><th>Meal plan</th><th>Done?</th><th>Notes</th></tr></thead><tbody></tbody></table></div><div class="card"><span class="badge">Weekly weight goal: ${targetKg} kg</span>
+<div style="margin-top:10px;max-width:260px"><b class="small">Current weight this week</b><input id="actual_${w}" data-weight-key="w${w}_actual" type="number" min="40" max="250" step="0.1" placeholder="kg" value="${edits[`w${w}_actual`]||""}" oninput="saveWeeklyWeight(this)"></div>
+<p class="small">Week notes</p><div contenteditable="true" id="notes_${w}" style="min-height:45px;background:#101820;border:1px solid var(--line);border-radius:10px;padding:10px">${edits[`w${w}_notes`]||""}</div></div>`;
 const tbody=details.querySelector("tbody");
 const ids=weeklyRecipeIds(w); const recipeNames=ids.map(id=>recipeById(id)?.name).filter(Boolean);
 days.forEach((d,i)=>{const date=addDays(start,i),type=d[1];
@@ -220,7 +248,7 @@ ${chosen.map((r,i)=>renderRecipeCard(r,w,["Batch Cook 1","Batch Cook 2","Discove
 foodRoot.appendChild(food);
 }
 document.querySelectorAll("[contenteditable=true][data-key]").forEach(el=>setEditableListener(el,el.dataset.key));
-for(let w=1;w<=totalWeeks;w++){let a=document.getElementById(`actual_${w}`),n=document.getElementById(`notes_${w}`);if(a)setEditableListener(a,`w${w}_actual`);if(n)setEditableListener(n,`w${w}_notes`)}
+for(let w=1;w<=totalWeeks;w++){let n=document.getElementById(`notes_${w}`);if(n)setEditableListener(n,`w${w}_notes`)}
 }
 function expandAll(){document.querySelectorAll(".tabPanel.active details.week").forEach(d=>d.open=true)}function collapseAll(){document.querySelectorAll(".tabPanel.active details.week").forEach(d=>d.open=false)}
 function csvEscape(v){return'"'+String(v??"").replaceAll('"','""')+'"'}
@@ -230,5 +258,18 @@ function importJSON(event){const file=event.target.files[0];if(!file)return;cons
 function resetLocal(){if(confirm("Clear saved edits and profile inputs? Fixed plan settings stay locked.")){localStorage.removeItem("marathonWeeklyEditsV2");localStorage.removeItem("marathonProfileV1");edits={};render()}}
 render();
 </script>
+
+<script>
+function checkLogin(){
+ const u=document.getElementById('u').value;
+ const p=document.getElementById('p').value;
+ if(u==='user' && p==='passwordpassword'){
+   document.getElementById('loginOverlay').style.display='none';
+ } else {
+   document.getElementById('loginError').textContent='Invalid username or password';
+ }
+}
+</script>
 </body>
+
 </html>
