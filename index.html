@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zero-to-Marathon Weekly Planner</title>
+<style>
+:root{--bg:#0d0f12;--panel:#171b20;--ink:#eef2f6;--muted:#9aa4af;--line:#2a313a;--accent:#ff7a18}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+.wrap{max-width:1500px;margin:0 auto;padding:18px}h1{margin:0 0 6px;font-size:28px}p{color:var(--muted);line-height:1.45}
+.grid{display:grid;grid-template-columns:repeat(6,minmax(140px,1fr));gap:10px;margin:16px 0}.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px}
+.card b{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.card span.big{display:block;font-size:22px;font-weight:750;margin-top:5px}
+.controls,.tabs{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}button,input{background:#0f1318;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit}
+button{cursor:pointer;background:#18202a}.primary,.tab.active{background:var(--accent);border-color:var(--accent);color:#111;font-weight:800}
+.note{background:#151a20;border-left:4px solid var(--accent);padding:12px;border-radius:8px;margin:14px 0;color:var(--muted)}
+.week{background:var(--panel);border:1px solid var(--line);border-radius:16px;margin:14px 0;overflow:hidden}
+.week summary{list-style:none;cursor:pointer;padding:14px 16px;background:#151a20;display:grid;grid-template-columns:90px 1.1fr .7fr .7fr .9fr;gap:10px;align-items:center}
+.week summary::-webkit-details-marker{display:none}.badge{display:inline-block;border:1px solid var(--line);background:#0f1318;border-radius:999px;padding:5px 8px;font-size:12px;color:var(--muted);margin:2px}
+.phase{color:var(--accent);font-weight:800}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:1150px}
+th,td{border-top:1px solid var(--line);padding:8px;vertical-align:top;text-align:left}th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;background:#11151a}
+td{font-size:14px}td[contenteditable=true],div[contenteditable=true],span[contenteditable=true]{background:#101820;outline:none}
+td[contenteditable=true]:focus,div[contenteditable=true]:focus,span[contenteditable=true]:focus{box-shadow:inset 0 0 0 2px var(--accent)}.small{font-size:12px;color:var(--muted)}
+.progress{height:8px;background:#0b0e11;border-radius:99px;overflow:hidden;margin-top:7px;border:1px solid var(--line)}.progress>div{height:100%;background:var(--accent)}
+.tabPanel{display:none}.tabPanel.active{display:block}.foodgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px}.recipe{background:#10151b;border:1px solid var(--line);border-radius:12px;padding:12px}.recipe h3{margin:0 0 8px;font-size:16px}.recipe ul{margin:8px 0 0 20px;padding:0}.shopping{columns:2}.anchorTarget{scroll-margin-top:12px}.recipeCard{background:#10151b;border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}.recipeCard h3{margin:0 0 6px}.recipeCard button{padding:6px 8px;margin:3px}.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99;padding:20px;overflow:auto}.modal.active{display:block}.modalBox{max-width:780px;margin:20px auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}.modalBox h2{margin-top:0}.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:4px 8px;margin:2px;color:var(--muted);font-size:12px}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.week summary{grid-template-columns:1fr;gap:6px}.foodgrid{grid-template-columns:1fr}.shopping{columns:1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Zero-to-Marathon Weekly Planner</h1>
+<p>Locked plan: starts from 1 km continuous running, builds to a June 2027 marathon, and reduces from 110 kg to 87 kg. Weight targets are weekly only.</p>
+
+<div class="grid">
+<div class="card"><b>Start date</b><span class="big" id="startDateText"></span></div>
+<div class="card"><b>Race date</b><span class="big" id="raceDateText"></span></div>
+<div class="card"><b>Plan start weight</b><span class="big" id="startWeightText"></span></div>
+<div class="card"><b>Target weight</b><span class="big" id="targetWeightText"></span></div>
+<div class="card"><b>Your current weight</b><input id="userWeight" type="number" min="40" max="250" step="0.1" placeholder="kg" oninput="saveProfileAndRender()"></div>
+<div class="card"><b>Your height</b><input id="userHeight" type="number" min="120" max="230" step="1" placeholder="cm" oninput="saveProfileAndRender()"></div>
+<div class="card"><b>Total weeks</b><span class="big" id="totalWeeksText"></span></div>
+<div class="card"><b>Today calories</b><span class="big" id="todayCaloriesText"></span></div>
+</div>
+
+<div class="note">Start date, race date, plan start kg and target kg are fixed. Enter your current weight and height to calculate calorie targets. Recipes stay the same; only calorie numbers adjust.</div>
+
+<div class="tabs">
+<button class="tab active" onclick="showTab('training')">Training</button>
+<button class="tab" onclick="showTab('food')">Food</button>
+</div>
+
+<div class="controls">
+<button class="primary" onclick="goToday()">Today</button>
+<button onclick="expandAll()">Expand all weeks</button>
+<button onclick="collapseAll()">Collapse all weeks</button>
+</div>
+
+<div id="training" class="tabPanel active"><div id="weeks"></div></div>
+<div id="food" class="tabPanel"><div id="foodWeeks"></div></div>
+
+<div id="recipeModal" class="modal" onclick="closeRecipeModal(event)"><div class="modalBox" id="recipeModalBox"></div></div>
+
+<div class="note" style="margin-top:28px">
+  <b>Utilities</b>
+  <div class="controls" style="margin-bottom:0">
+    <button onclick="exportCSV()">Export CSV</button>
+    <button onclick="downloadJSON()">Download backup</button>
+    <input type="file" id="importFile" accept=".json" onchange="importJSON(event)" />
+    <button onclick="resetLocal()">Reset saved edits</button>
+  </div>
+</div>
+</div>
+
+<script>
+const CONFIG=Object.freeze({startDate:"2026-06-08",raceDate:"2027-06-20",startKg:110,targetKg:87,startRunKm:1});
+const RECIPES=[{"id": "sarma", "cuisine": "Balkan", "name": "Sarma", "kcal": 620, "protein": 45, "portions": 8, "time": "2.5 h", "tags": ["slow cooker", "batch", "freezes"], "ingredients": ["1 large pickled cabbage or 16 leaves", "900g lean pork/beef mince", "180g rice", "2 onions", "4 garlic cloves", "2 tbsp paprika", "700ml passata", "300g smoked meat or turkey bacon optional"], "method": ["Soften onions and garlic, then mix with mince, rice, paprika, salt and pepper.", "Roll filling in cabbage leaves.", "Layer rolls in oven dish/slow cooker with passata and enough water/stock to cover halfway.", "Cook covered low and slow until cabbage is tender and rice is cooked.", "Serve with extra protein or yogurt if needed."]}, {"id": "stuffed_peppers", "cuisine": "Balkan", "name": "Stuffed peppers", "kcal": 560, "protein": 42, "portions": 6, "time": "1.5 h", "tags": ["batch", "oven"], "ingredients": ["8 bell peppers", "800g lean mince", "150g rice", "1 onion", "2 garlic cloves", "700ml passata", "1 tbsp paprika", "parsley"], "method": ["Mix mince, rice, onion, garlic, paprika and parsley.", "Stuff peppers loosely.", "Bake/simmer in passata until peppers soften and filling cooks through.", "Use smaller rice portion on rest days; bigger portion after runs."]}, {"id": "cobanac", "cuisine": "Balkan", "name": "Lean čobanac", "kcal": 610, "protein": 55, "portions": 8, "time": "2.5 h", "tags": ["slow cooker", "spicy", "batch"], "ingredients": ["1.2kg lean stewing beef/pork mix", "4 onions", "4 garlic cloves", "2 carrots", "2 tbsp sweet paprika", "1 tsp hot paprika", "500ml passata", "500ml stock", "potatoes optional"], "method": ["Brown meat in batches.", "Cook onions down properly, then add garlic and paprika.", "Add meat, passata and stock.", "Slow cook until tender.", "Add potatoes only for training/long-run portions."]}, {"id": "paprikas", "cuisine": "Balkan", "name": "Chicken paprikaš", "kcal": 520, "protein": 50, "portions": 6, "time": "1.25 h", "tags": ["comfort", "batch"], "ingredients": ["1.2kg skinless chicken thighs", "3 onions", "2 tbsp paprika", "2 peppers", "500ml chicken stock", "200g light sour cream or Greek yogurt", "rice or noodles"], "method": ["Brown chicken lightly.", "Cook onions until soft, then add paprika and peppers.", "Add chicken and stock; simmer until tender.", "Finish with yogurt/sour cream off the heat.", "Serve with rice/noodles on run days."]}, {"id": "grah", "cuisine": "Balkan", "name": "Grah bean stew", "kcal": 540, "protein": 38, "portions": 8, "time": "2 h", "tags": ["cheap", "batch"], "ingredients": ["500g dried beans or 4 tins beans", "500g lean smoked sausage/turkey sausage", "3 onions", "3 carrots", "2 tbsp paprika", "bay leaves", "stock"], "method": ["Soak beans if using dried.", "Cook onions, carrots and sausage.", "Add beans, paprika, bay and stock.", "Simmer until thick.", "Add extra chicken/turkey if protein needs boosting."]}, {"id": "gregada", "cuisine": "Seafood", "name": "Gregada fish stew", "kcal": 480, "protein": 48, "portions": 4, "time": "45 min", "tags": ["seafood", "lighter"], "ingredients": ["800g white fish", "500g potatoes", "2 onions", "4 garlic cloves", "parsley", "olive oil", "fish stock"], "method": ["Layer onions, potatoes, garlic and fish in a wide pan.", "Add stock, parsley and a little olive oil.", "Simmer gently without stirring too much.", "Serve with salad; add bread/rice on long-run day."]}, {"id": "brudet", "cuisine": "Seafood", "name": "Brudet", "kcal": 520, "protein": 50, "portions": 5, "time": "1 h", "tags": ["seafood", "stew"], "ingredients": ["1kg mixed firm fish/seafood", "2 onions", "4 garlic cloves", "600ml passata", "150ml vinegar or wine substitute", "parsley", "polenta or rice"], "method": ["Cook onion and garlic until soft.", "Add passata and vinegar/wine substitute.", "Add fish and simmer gently.", "Serve over polenta/rice when training volume is higher."]}, {"id": "zurek", "cuisine": "Polish", "name": "Żurek high-protein", "kcal": 520, "protein": 42, "portions": 6, "time": "1 h", "tags": ["soup", "comfort"], "ingredients": ["1.5L żurek starter or sour rye base", "600g lean sausage/chicken sausage", "6 eggs", "potatoes optional", "marjoram", "garlic", "Greek yogurt"], "method": ["Simmer sausage with garlic and marjoram.", "Add żurek starter and cook gently.", "Add boiled eggs to portions.", "Use potatoes only on training days."]}, {"id": "flaki", "cuisine": "Polish", "name": "Flaki / fileki", "kcal": 460, "protein": 48, "portions": 6, "time": "2 h", "tags": ["soup", "high protein"], "ingredients": ["1kg cleaned tripe", "2 carrots", "1 onion", "celery", "marjoram", "paprika", "beef stock"], "method": ["Simmer tripe until tender.", "Add vegetables, stock and spices.", "Cook until thick and aromatic.", "Serve with bread only if it is a training day."]}, {"id": "hunters_stew", "cuisine": "Polish", "name": "Hunter's stew light", "kcal": 560, "protein": 45, "portions": 8, "time": "3 h", "tags": ["slow cooker", "batch"], "ingredients": ["1kg sauerkraut/cabbage mix", "800g lean pork/chicken/turkey sausage", "mushrooms", "onion", "tomato paste", "paprika", "bay"], "method": ["Brown meats and onion.", "Add cabbage/sauerkraut, mushrooms, tomato and spices.", "Cook low and slow until rich.", "Great as a low-carb rest-day dinner."]}, {"id": "birria", "cuisine": "Mexican", "name": "Birria bowls", "kcal": 650, "protein": 55, "portions": 8, "time": "3 h", "tags": ["slow cooker", "spicy"], "ingredients": ["1.5kg beef shin/chuck trimmed", "4 dried guajillo/ancho chillies", "2 onions", "6 garlic cloves", "cumin", "oregano", "stock", "rice", "lime/coriander"], "method": ["Toast and soak chillies, then blend with onion, garlic and spices.", "Brown beef and add sauce plus stock.", "Slow cook until shreddable.", "Serve as rice bowls; use tortillas only when calories allow."]}, {"id": "pozole", "cuisine": "Mexican", "name": "Pozole rojo", "kcal": 580, "protein": 48, "portions": 8, "time": "2.5 h", "tags": ["soup", "batch"], "ingredients": ["1.2kg pork shoulder trimmed or chicken thighs", "2 tins hominy", "dried guajillo/ancho chillies", "onion", "garlic", "oregano", "cabbage/radish/lime"], "method": ["Make red chilli sauce from soaked dried chillies.", "Simmer meat with onion and garlic until tender.", "Add hominy and chilli sauce.", "Serve with cabbage, radish and lime."]}, {"id": "chile_verde", "cuisine": "Mexican", "name": "Chile verde", "kcal": 540, "protein": 50, "portions": 6, "time": "2 h", "tags": ["slow cooker", "spicy"], "ingredients": ["1.2kg lean pork or chicken thighs", "700g tomatillos or green salsa", "2 green chillies", "onion", "garlic", "cumin", "rice"], "method": ["Char tomatillos/chillies if using fresh.", "Blend with garlic, onion and cumin.", "Cook meat in sauce until tender.", "Serve over rice or potatoes after training."]}, {"id": "fajitas", "cuisine": "Mexican", "name": "Chicken fajita bowls", "kcal": 560, "protein": 55, "portions": 6, "time": "45 min", "tags": ["quick", "batch"], "ingredients": ["1.2kg chicken breast/thigh", "4 peppers", "3 onions", "fajita spices", "rice", "Greek yogurt", "lime"], "method": ["Slice chicken and vegetables.", "Cook hot with spices until charred.", "Serve as bowls with rice, yogurt and lime.", "Lower rice on rest days."]}, {"id": "carnitas", "cuisine": "Mexican", "name": "Carnitas bowls light", "kcal": 620, "protein": 52, "portions": 8, "time": "3 h", "tags": ["slow cooker", "batch"], "ingredients": ["1.5kg pork shoulder trimmed", "orange/lime", "garlic", "cumin", "oregano", "rice", "pico de gallo"], "method": ["Slow cook pork with citrus, garlic and spices.", "Shred and crisp under grill if desired.", "Serve with rice and salsa.", "Keep fatty bits limited for calorie control."]}, {"id": "rellenos", "cuisine": "Mexican", "name": "Chiles rellenos bowl", "kcal": 570, "protein": 42, "portions": 4, "time": "1 h", "tags": ["vegetable", "comfort"], "ingredients": ["6 large peppers", "500g lean mince or chicken", "reduced-fat cheese", "tomato sauce", "rice", "coriander"], "method": ["Roast and peel peppers if possible.", "Fill with mince/chicken and a little cheese.", "Bake in tomato sauce.", "Serve as a bowl with measured rice."]}, {"id": "mole", "cuisine": "Mexican", "name": "Mole chicken", "kcal": 600, "protein": 52, "portions": 6, "time": "1.5 h", "tags": ["rich", "batch"], "ingredients": ["1.2kg chicken thighs", "mole paste or chillies/cocoa/spices", "onion", "stock", "rice", "sesame"], "method": ["Brown chicken.", "Cook onion, add mole paste/spice base and stock.", "Simmer until chicken is tender.", "Serve with rice and salad."]}, {"id": "turkey_chilli", "cuisine": "American/Cajun", "name": "Turkey chilli", "kcal": 520, "protein": 50, "portions": 6, "time": "1 h", "tags": ["cheap", "batch"], "ingredients": ["1kg turkey mince", "2 tins tomatoes", "2 tins beans", "2 peppers", "2 onions", "chilli powder", "cumin", "paprika"], "method": ["Brown turkey mince.", "Add onion, peppers and spices.", "Add tomatoes and beans.", "Simmer until thick; portion with rice for run days."]}, {"id": "japanese_curry", "cuisine": "Japanese", "name": "Japanese curry rice", "kcal": 650, "protein": 45, "portions": 6, "time": "1.25 h", "tags": ["comfort", "carb"], "ingredients": ["1.2kg chicken thighs", "3 carrots", "2 onions", "700g potatoes", "Japanese curry blocks or homemade roux", "rice"], "method": ["Brown chicken and onions.", "Add carrots, potatoes and water/stock.", "Simmer until tender.", "Add curry blocks at the end.", "Serve with rice, especially after harder sessions."]}, {"id": "ramen_bowls", "cuisine": "Japanese", "name": "Tonkotsu-style ramen bowls", "kcal": 700, "protein": 48, "portions": 4, "time": "45 min", "tags": ["comfort", "training"], "ingredients": ["ramen noodles", "1L rich chicken/pork stock", "600g roast pork/chicken", "4 eggs", "miso or tare", "spring onions", "mushrooms"], "method": ["Prepare rich stock with miso/tare.", "Cook noodles separately.", "Top with sliced meat, egg, mushrooms and spring onions.", "Use as hard training or long-run meal."]}, {"id": "oyakodon", "cuisine": "Japanese", "name": "Oyakodon", "kcal": 580, "protein": 45, "portions": 4, "time": "30 min", "tags": ["quick", "rice"], "ingredients": ["700g chicken thigh/breast", "6 eggs", "2 onions", "dashi/stock", "soy sauce", "mirin substitute", "rice"], "method": ["Simmer onions and chicken in stock, soy and a little sweetness.", "Pour beaten eggs over gently.", "Serve over rice.", "Fast recovery meal."]}, {"id": "miso_chicken_rice", "cuisine": "Japanese", "name": "Miso chicken rice", "kcal": 560, "protein": 50, "portions": 5, "time": "45 min", "tags": ["batch", "umami"], "ingredients": ["1kg chicken thighs", "3 tbsp miso", "soy sauce", "ginger", "garlic", "rice", "greens"], "method": ["Marinate chicken in miso, soy, ginger and garlic.", "Roast or pan-cook.", "Serve with rice and greens.", "Good lunch prep."]}, {"id": "teriyaki_salmon", "cuisine": "Japanese", "name": "Teriyaki salmon bowls", "kcal": 620, "protein": 45, "portions": 4, "time": "30 min", "tags": ["seafood", "quick"], "ingredients": ["4 salmon fillets", "soy sauce", "ginger", "garlic", "honey/sweetener", "rice", "edamame", "cucumber"], "method": ["Make teriyaki glaze with soy, ginger, garlic and small amount of honey.", "Cook salmon and glaze.", "Serve with rice, edamame and cucumber."]}, {"id": "dakdoritang", "cuisine": "Korean", "name": "Dakdoritang", "kcal": 650, "protein": 55, "portions": 6, "time": "1.5 h", "tags": ["spicy", "slow cooker"], "ingredients": ["1.5kg chicken thighs", "800g potatoes", "2 carrots", "2 onions", "gochujang", "gochugaru", "garlic", "ginger", "soy sauce"], "method": ["Mix gochujang, gochugaru, soy, garlic and ginger.", "Simmer chicken with sauce and water/stock.", "Add potatoes and carrots.", "Cook until thick and tender."]}, {"id": "bulgogi", "cuisine": "Korean", "name": "Bulgogi bowls", "kcal": 620, "protein": 50, "portions": 5, "time": "45 min", "tags": ["quick", "rice"], "ingredients": ["900g lean beef or turkey", "soy sauce", "pear/apple or sweetener", "garlic", "ginger", "rice", "kimchi/cucumber"], "method": ["Marinate thin sliced meat in soy, garlic, ginger and pear/apple.", "Cook hot and fast.", "Serve with rice and kimchi/cucumber."]}, {"id": "gochujang_chicken", "cuisine": "Korean", "name": "Gochujang chicken", "kcal": 560, "protein": 52, "portions": 5, "time": "45 min", "tags": ["spicy", "batch"], "ingredients": ["1.2kg chicken thighs", "gochujang", "soy sauce", "garlic", "ginger", "sesame", "rice", "broccoli"], "method": ["Coat chicken in gochujang sauce.", "Roast until sticky and cooked.", "Serve with rice and broccoli.", "Use less rice on rest days."]}, {"id": "korean_beef", "cuisine": "Korean", "name": "Korean beef bowls", "kcal": 600, "protein": 48, "portions": 5, "time": "35 min", "tags": ["quick", "batch"], "ingredients": ["900g lean mince", "soy sauce", "garlic", "ginger", "gochujang", "rice", "cucumber", "spring onions"], "method": ["Brown mince well.", "Add soy, garlic, ginger and gochujang.", "Serve over rice with cucumber and spring onions."]}, {"id": "thai_basil", "cuisine": "Thai", "name": "Thai basil chicken", "kcal": 540, "protein": 52, "portions": 4, "time": "25 min", "tags": ["quick", "spicy"], "ingredients": ["800g chicken mince", "garlic", "chillies", "fish sauce", "soy sauce", "Thai basil", "rice", "green beans"], "method": ["Stir-fry garlic and chillies.", "Add chicken mince and brown.", "Season with fish sauce/soy.", "Stir in basil at the end.", "Serve with rice."]}, {"id": "red_curry", "cuisine": "Thai", "name": "Thai red curry", "kcal": 620, "protein": 45, "portions": 5, "time": "45 min", "tags": ["curry", "batch"], "ingredients": ["1kg chicken or prawns", "red curry paste", "light coconut milk", "aubergine/squash", "green beans", "rice", "lime"], "method": ["Fry curry paste briefly.", "Add protein, veg and light coconut milk.", "Simmer until cooked.", "Serve with rice; control coconut portion for calories."]}, {"id": "larb", "cuisine": "Thai", "name": "Larb bowls", "kcal": 480, "protein": 50, "portions": 4, "time": "25 min", "tags": ["fresh", "low calorie"], "ingredients": ["800g chicken/turkey mince", "lime", "fish sauce", "chilli", "mint/coriander", "lettuce", "rice optional"], "method": ["Cook mince until dry and crumbly.", "Season with lime, fish sauce and chilli.", "Add herbs.", "Serve in lettuce or with rice after training."]}, {"id": "chowder", "cuisine": "Seafood", "name": "Seafood chowder light", "kcal": 520, "protein": 48, "portions": 6, "time": "1 h", "tags": ["seafood", "comfort"], "ingredients": ["1kg mixed seafood/fish", "700g potatoes", "onion", "celery", "stock", "semi-skim milk", "sweetcorn"], "method": ["Cook onion and celery.", "Add potatoes and stock until tender.", "Add milk and seafood at the end.", "Do not boil hard after seafood goes in."]}, {"id": "cataplana", "cuisine": "Seafood", "name": "Cataplana", "kcal": 560, "protein": 50, "portions": 4, "time": "50 min", "tags": ["seafood", "discovery"], "ingredients": ["1kg mussels/clams/prawns/fish", "2 onions", "4 garlic cloves", "peppers", "tomatoes", "paprika", "potatoes or bread"], "method": ["Cook onions, garlic and peppers.", "Add tomatoes and paprika.", "Add seafood, cover and steam until just cooked.", "Serve with potatoes/bread depending on training day."]}, {"id": "seafood_rice", "cuisine": "Seafood", "name": "Seafood rice", "kcal": 620, "protein": 45, "portions": 5, "time": "55 min", "tags": ["carb", "seafood"], "ingredients": ["900g mixed seafood", "350g rice", "onion", "garlic", "tomatoes", "peas", "stock", "paprika"], "method": ["Cook onion and garlic.", "Toast rice, add tomato and stock.", "Simmer until nearly cooked.", "Add seafood and peas at the end."]}, {"id": "jambalaya", "cuisine": "American/Cajun", "name": "Jambalaya", "kcal": 640, "protein": 50, "portions": 6, "time": "1 h", "tags": ["spicy", "batch"], "ingredients": ["800g chicken thighs", "300g lean sausage", "300g prawns", "350g rice", "peppers", "onion", "celery", "Cajun seasoning", "tomatoes"], "method": ["Brown chicken and sausage.", "Cook trinity: onion, celery, pepper.", "Add rice, tomatoes, stock and seasoning.", "Add prawns near the end."]}, {"id": "cajun_chicken", "cuisine": "American/Cajun", "name": "Cajun chicken traybake", "kcal": 560, "protein": 55, "portions": 5, "time": "55 min", "tags": ["oven", "easy"], "ingredients": ["1.2kg chicken thighs/breast", "700g potatoes", "peppers", "onions", "Cajun seasoning", "Greek yogurt sauce"], "method": ["Toss chicken, potatoes and veg with Cajun seasoning.", "Roast until cooked and browned.", "Serve with yogurt sauce and salad."]}, {"id": "kefta", "cuisine": "Middle East", "name": "Kefta tagine", "kcal": 600, "protein": 50, "portions": 6, "time": "1.25 h", "tags": ["spiced", "batch"], "ingredients": ["1kg lean lamb/beef/turkey mince", "onion", "parsley", "cumin", "paprika", "tomatoes", "eggs optional", "couscous/rice"], "method": ["Mix mince with onion, herbs and spices, then form balls.", "Simmer in spiced tomato sauce.", "Crack eggs into sauce if wanted.", "Serve with couscous/rice on run days."]}, {"id": "shawarma", "cuisine": "Middle East", "name": "Chicken shawarma bowls", "kcal": 580, "protein": 55, "portions": 6, "time": "1 h", "tags": ["batch", "fresh"], "ingredients": ["1.2kg chicken thighs", "shawarma spices", "rice", "cucumber", "tomato", "lettuce", "Greek yogurt", "lemon"], "method": ["Marinate chicken with spices and lemon.", "Roast or grill.", "Serve over rice with salad and yogurt sauce."]}, {"id": "feijoada", "cuisine": "Discovery", "name": "Feijoada light", "kcal": 620, "protein": 48, "portions": 8, "time": "2.5 h", "tags": ["beans", "slow cooker"], "ingredients": ["700g black beans", "900g lean pork/beef/turkey sausage mix", "onion", "garlic", "bay", "orange", "rice"], "method": ["Cook beans with bay until tender.", "Brown meats with onion and garlic.", "Combine and simmer until thick.", "Serve with rice and orange; keep sausage lean."]}, {"id": "aji_gallina", "cuisine": "Discovery", "name": "Aji de gallina light", "kcal": 610, "protein": 50, "portions": 6, "time": "1.25 h", "tags": ["creamy", "spicy"], "ingredients": ["1.2kg chicken breast/thigh", "aji amarillo paste", "onion", "garlic", "light evaporated milk or yogurt", "bread or oats for thickening", "rice", "eggs"], "method": ["Poach and shred chicken.", "Cook onion, garlic and aji paste.", "Add milk/yogurt and thickener.", "Stir in chicken and serve with rice and egg."]}, {"id": "cassoulet", "cuisine": "Discovery", "name": "Cassoulet light", "kcal": 640, "protein": 52, "portions": 8, "time": "3 h", "tags": ["slow cooker", "beans"], "ingredients": ["1kg chicken thighs", "400g lean sausage", "4 tins white beans", "onions", "carrots", "garlic", "tomatoes", "stock", "thyme"], "method": ["Brown chicken and sausage.", "Cook vegetables, then add beans, tomato and stock.", "Bake/slow cook until thick.", "Excellent winter batch meal."]}, {"id": "hungarian_goulash", "cuisine": "Discovery", "name": "Hungarian bean goulash", "kcal": 580, "protein": 45, "portions": 8, "time": "2 h", "tags": ["stew", "batch"], "ingredients": ["1kg lean beef", "3 tins beans", "4 onions", "2 peppers", "2 tbsp paprika", "caraway", "stock", "potatoes optional"], "method": ["Brown beef and onions.", "Add paprika carefully, then peppers, beans and stock.", "Simmer until beef is tender.", "Add potatoes for higher-carb weeks."]}, {"id": "kharcho", "cuisine": "Discovery", "name": "Kharcho", "kcal": 610, "protein": 48, "portions": 6, "time": "2 h", "tags": ["spicy", "stew"], "ingredients": ["1.2kg lean beef", "rice", "walnuts optional", "tomato paste", "garlic", "coriander", "khmeli suneli or mixed spices", "chilli"], "method": ["Simmer beef until tender.", "Add rice, tomato, garlic and spices.", "Add ground walnuts if calories allow.", "Finish with coriander and chilli."]}];
+const fineDining=["Sushi","Mussels","Seafood pasta","Ramen night","Lobster","Lamb rack","Duck breast","Steak night"];
+function recipeById(id){return RECIPES.find(r=>r.id===id)}
+
+
+function dateObj(s){return new Date(s+"T00:00:00")}function fmtDate(d){return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})}
+function dayName(d){return d.toLocaleDateString("en-GB",{weekday:"short"})}function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
+function weeksBetween(a,b){return Math.ceil((dateObj(b)-dateObj(a))/(7*24*60*60*1000))}const totalWeeks=weeksBetween(CONFIG.startDate,CONFIG.raceDate);
+function currentWeek(){return Math.max(1,Math.min(totalWeeks,Math.ceil((new Date()-dateObj(CONFIG.startDate))/(7*24*60*60*1000))))}
+function loadProfile(){try{return JSON.parse(localStorage.getItem("marathonProfileV1")||"{}")}catch(e){return{}}}
+function saveProfile(){localStorage.setItem("marathonProfileV1",JSON.stringify({
+  weight:document.getElementById("userWeight")?.value||"",
+  height:document.getElementById("userHeight")?.value||""
+}))}
+function saveProfileAndRender(){saveProfile();render()}
+function bmr(){
+  const profile=loadProfile();
+  const kg=parseFloat(profile.weight)||CONFIG.startKg;
+  const cm=parseFloat(profile.height)||178;
+  const age=38;
+  return Math.round((10*kg)+(6.25*cm)-(5*age)+5);
+}
+function sedentaryMaintenance(){return Math.round(bmr()*1.2)}
+function calorieTargetFor(type,w){
+  const maintenance=sedentaryMaintenance();
+  let deficit=w<28?500:w<45?350:200;
+  let target=maintenance-deficit;
+  if(type==="Long")target+=350;
+  else if(type==="Run"||type==="Quality")target+=150;
+  return Math.max(1800,Math.round(target/25)*25);
+}
+function phaseForWeek(w){if(w<=4)return"Walking habit";if(w<=12)return"Walk/run foundation";if(w<=20)return"5k to 10k base";if(w<=32)return"10k base building";if(w<=42)return"Half-marathon endurance";if(w<=51)return"Marathon build";if(w<=54)return"Peak long runs";return"Taper"}
+function weeklyWeightTarget(w){const p=Math.min(1,(w-1)/(totalWeeks-1));const curved=p<.55?p*1.13:.6215+(p-.55)*.841;const kg=CONFIG.startKg-(CONFIG.startKg-CONFIG.targetKg)*Math.min(1,curved);return Math.max(CONFIG.targetKg,kg)}
+function caloriesForDay(type,w){return calorieTargetFor(type,w)}
+function longRunKm(w){if(w<=4)return 0;if(w<=12)return 2+(w-5)*.5;if(w<=20)return 5+(w-13)*.7;if(w<=32)return 10+(w-21)*.55;if(w<=42)return 16+(w-33)*.7;if(w<=51)return 22+(w-43)*1.1;if(w<=54)return[30,24,32][w-52]||26;return Math.max(8,26-(w-55)*7)}
+function sessionsForWeek(w){let days=[["Mon","Rest","Rest + 10 min mobility"],["Tue","Run","Walk/run 30 min"],["Wed","Walk","Brisk walk 45 min"],["Thu","Run","Walk/run 30 min"],["Fri","Rest","Rest + light stretching"],["Sat","Walk","Long walk 60 min"],["Sun","Long","Easy long walk/run"]];
+if(w<=4){const r=1+(w-1)*.5;days[1][2]=`${r.toFixed(1)} min jog / 2 min walk × 8-10`;days[3][2]=`${r.toFixed(1)} min jog / 2 min walk × 8-10`;days[6][2]=`Long brisk walk ${60+w*5} min, optional short jogs`}
+else if(w<=12){const r=Math.min(5,2+(w-5)*.45);days[1][2]=`Run/walk ${r.toFixed(1)} km easy`;days[3][2]=`Run/walk ${r.toFixed(1)} km easy`;days[6][2]=`Long easy run/walk ${longRunKm(w).toFixed(1)} km`}
+else if(w<=20){const e=3+(w-13)*.4;days[1][2]=`Easy run ${e.toFixed(1)} km`;days[3][2]=`Easy run ${e.toFixed(1)} km + strides if fresh`;days[6][2]=`Long easy run ${longRunKm(w).toFixed(1)} km`}
+else if(w<=32){const e=5+(w-21)*.25;days[1][2]=`Easy run ${e.toFixed(1)} km`;days[3][1]="Quality";days[3][2]=`Steady intervals/fartlek ${Math.max(5,e).toFixed(1)} km total`;days[5][1]="Run";days[5][2]=`Recovery jog ${Math.max(4,e-1).toFixed(1)} km`;days[6][2]=`Long easy run ${longRunKm(w).toFixed(1)} km`}
+else if(w<=42){const e=7+(w-33)*.2;days[1][2]=`Easy run ${e.toFixed(1)} km`;days[3][1]="Quality";days[3][2]=`Tempo/steady run ${Math.max(7,e).toFixed(1)} km total`;days[5][1]="Run";days[5][2]=`Recovery run ${Math.max(5,e-2).toFixed(1)} km`;days[6][2]=`Long run ${longRunKm(w).toFixed(1)} km`}
+else if(w<=54){const e=8+(w-43)*.1;days[1][2]=`Easy run ${e.toFixed(1)} km`;days[2][2]="Walk 45-60 min or rest if legs sore";days[3][1]="Quality";days[3][2]=`Marathon pace blocks ${Math.max(8,e+1).toFixed(1)} km total`;days[5][1]="Run";days[5][2]=`Recovery run ${Math.max(5,e-2).toFixed(1)} km`;days[6][2]=`Long run ${longRunKm(w).toFixed(1)} km`}
+else{const t=Math.max(3,8-(w-55)*2);days[1][2]=`Easy run ${t} km`;days[3][1]="Run";days[3][2]=`Short run ${Math.max(3,t-1)} km with relaxed strides`;days[5][1]="Rest";days[5][2]="Rest / short walk only";days[6][2]=w===totalWeeks?"Race week: marathon":`Reduced long run ${longRunKm(w).toFixed(1)} km`}return days}
+function weeklyKmEstimate(days){let sum=0;for(const d of days){const m=d[2].match(/(\d+(?:\.\d+)?)\s*km/g);if(m)sum+=Math.max(...m.map(x=>parseFloat(x)))}return Math.round(sum)}
+function loadEdits(){try{return JSON.parse(localStorage.getItem("marathonWeeklyEditsV2")||"{}")}catch(e){return{}}}function saveEdits(e){localStorage.setItem("marathonWeeklyEditsV2",JSON.stringify(e))}let edits=loadEdits();
+function setEditableListener(el,key){el.addEventListener("input",()=>{edits[key]=el.innerText;saveEdits(edits)})}
+function showTab(id){document.querySelectorAll(".tabPanel").forEach(p=>p.classList.remove("active"));document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));document.getElementById(id).classList.add("active");event.target.classList.add("active")}
+function goToday(){
+const w=currentWeek();
+const active=document.querySelector(".tabPanel.active");
+const isFood=active && active.id==="food";
+const selector=isFood?`#food_week_${w}`:`#week_${w}`;
+document.querySelectorAll(".tabPanel.active details.week").forEach(d=>d.open=false);
+const el=document.querySelector(selector);
+if(el){el.open=true;el.scrollIntoView({behavior:"smooth",block:"start"});}
+}
+function showTabById(id){document.querySelectorAll(".tabPanel").forEach(p=>p.classList.remove("active"));document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".tab").forEach(t=>{if(t.textContent.toLowerCase()===id)t.classList.add("active")})}
+
+function loadFoodPrefs(){try{return JSON.parse(localStorage.getItem("marathonFoodPrefsV1")||'{"fav":[],"never":[]}')}catch(e){return {fav:[],never:[]}}}
+function saveFoodPrefs(p){localStorage.setItem("marathonFoodPrefsV1",JSON.stringify(p))}
+function toggleFav(id){const p=loadFoodPrefs();p.fav=p.fav||[];p.never=p.never||[];if(p.fav.includes(id))p.fav=p.fav.filter(x=>x!==id);else p.fav.push(id);p.never=p.never.filter(x=>x!==id);saveFoodPrefs(p);render()}
+function neverAgain(id){const p=loadFoodPrefs();p.never=p.never||[];p.fav=p.fav||[];if(!p.never.includes(id))p.never.push(id);p.fav=p.fav.filter(x=>x!==id);saveFoodPrefs(p);render()}
+function weeklyRecipeIds(w){
+  const p=loadFoodPrefs(); const never=new Set(p.never||[]);
+  const available=RECIPES.filter(r=>!never.has(r.id));
+  const favs=(p.fav||[]).map(recipeById).filter(Boolean).filter(r=>!never.has(r.id));
+  const cuisines=["Balkan","Mexican","Japanese","Korean","Thai","Seafood","American/Cajun","Middle East","Discovery","Polish"];
+  let chosen=[];
+  function addFromCuisine(c, offset=0){
+    const pool=available.filter(r=>r.cuisine===c && !chosen.includes(r.id));
+    if(pool.length) chosen.push(pool[(w+offset)%pool.length].id);
+  }
+  if(favs.length && w%3===0) chosen.push(favs[w%favs.length].id);
+  addFromCuisine(cuisines[(w-1)%cuisines.length],0);
+  addFromCuisine(cuisines[(w+2)%cuisines.length],1);
+  addFromCuisine(cuisines[(w+5)%cuisines.length],2);
+  addFromCuisine("Seafood",w);
+  // fill to 4 unique recipes
+  let idx=w;
+  while(chosen.length<4 && available.length){
+    const r=available[idx%available.length];
+    if(!chosen.includes(r.id)) chosen.push(r.id);
+    idx+=7;
+  }
+  return chosen.slice(0,4);
+}
+function shoppingForIds(ids){
+  const map=new Map();
+  ids.map(recipeById).filter(Boolean).forEach(r=>r.ingredients.forEach(i=>map.set(i,true)));
+  return Array.from(map.keys()).sort();
+}
+function renderRecipeCard(r,w,slot){
+  const p=loadFoodPrefs(); const fav=(p.fav||[]).includes(r.id);
+  return `<div class="recipeCard"><h3>${slot}: ${r.name}</h3>
+  <div><span class="pill">${r.cuisine}</span><span class="pill">${r.kcal} kcal</span><span class="pill">${r.protein}g protein</span><span class="pill">${r.portions} portions</span><span class="pill">${r.time}</span>${r.tags.map(t=>`<span class="pill">${t}</span>`).join("")}</div>
+  <p class="small">${r.ingredients.slice(0,6).join(", ")}${r.ingredients.length>6?", ...":""}</p>
+  <button onclick="openRecipe('${r.id}')">📖 Full recipe</button>
+  <button onclick="toggleFav('${r.id}')">${fav?"★ Favourite":"☆ Favourite"}</button>
+  <button onclick="neverAgain('${r.id}')">Never again</button></div>`;
+}
+function openRecipe(id){
+  const r=recipeById(id); if(!r)return;
+  const box=document.getElementById("recipeModalBox");
+  box.innerHTML=`<button style="float:right" onclick="document.getElementById('recipeModal').classList.remove('active')">Close</button>
+  <h2>${r.name}</h2><p><span class="pill">${r.cuisine}</span><span class="pill">${r.kcal} kcal/portion</span><span class="pill">${r.protein}g protein</span><span class="pill">${r.portions} portions</span><span class="pill">${r.time}</span></p>
+  <h3>Ingredients</h3><ul>${r.ingredients.map(i=>`<li>${i}</li>`).join("")}</ul>
+  <h3>Method</h3><ol>${r.method.map(m=>`<li>${m}</li>`).join("")}</ol>
+  <h3>Use in plan</h3><p>Cook for 2 people, use leftovers for lunches. Add more rice/potato/pasta on hard-run and long-run days; reduce carbs on rest days.</p>`;
+  document.getElementById("recipeModal").classList.add("active");
+}
+function closeRecipeModal(e){if(e.target.id==="recipeModal")e.currentTarget.classList.remove("active")}
+function render(){
+const profile=loadProfile();
+document.getElementById("startDateText").textContent=fmtDate(dateObj(CONFIG.startDate));
+document.getElementById("raceDateText").textContent=fmtDate(dateObj(CONFIG.raceDate));
+document.getElementById("startWeightText").textContent=CONFIG.startKg+" kg";
+document.getElementById("targetWeightText").textContent=CONFIG.targetKg+" kg";
+document.getElementById("totalWeeksText").textContent=totalWeeks;
+document.getElementById("todayCaloriesText").textContent=caloriesForDay("Rest",currentWeek())+" kcal";
+const uw=document.getElementById("userWeight"), uh=document.getElementById("userHeight");
+if(uw && document.activeElement!==uw) uw.value=profile.weight||"";
+if(uh && document.activeElement!==uh) uh.value=profile.height||"";
+const root=document.getElementById("weeks"),foodRoot=document.getElementById("foodWeeks");root.innerHTML="";foodRoot.innerHTML="";
+for(let w=1;w<=totalWeeks;w++){
+const start=addDays(dateObj(CONFIG.startDate),(w-1)*7),end=addDays(start,6),phase=phaseForWeek(w),targetKg=weeklyWeightTarget(w).toFixed(1),days=sessionsForWeek(w),km=weeklyKmEstimate(days),pct=Math.round((w/totalWeeks)*100);
+const details=document.createElement("details");details.className="week anchorTarget";details.id=`week_${w}`;if(w<=2||w===currentWeek())details.open=true;
+details.innerHTML=`<summary><div><span class="badge">Week ${w}</span></div><div><b>${fmtDate(start)} - ${fmtDate(end)}</b><br><span class="phase">${phase}</span></div><div>Weight goal: <b>${targetKg} kg</b><br><span class="small">weekly only</span></div><div>Training: <b>~${km} km</b><br><span class="small">estimate</span></div><div><span class="small">${pct}% through plan</span><div class="progress"><div style="width:${pct}%"></div></div></div></summary><div class="tablewrap"><table><thead><tr><th>Date</th><th>Day</th><th>Type</th><th>Training</th><th>Calories</th><th>Protein</th><th>Meal plan</th><th>Done?</th><th>Notes</th></tr></thead><tbody></tbody></table></div><div class="card"><span class="badge">Weekly weight goal: ${targetKg} kg</span> <span class="badge">Actual weight: <span contenteditable="true" id="actual_${w}">${edits[`w${w}_actual`]||""}</span></span><p class="small">Week notes</p><div contenteditable="true" id="notes_${w}" style="min-height:45px;background:#101820;border:1px solid var(--line);border-radius:10px;padding:10px">${edits[`w${w}_notes`]||""}</div></div>`;
+const tbody=details.querySelector("tbody");
+const ids=weeklyRecipeIds(w); const recipeNames=ids.map(id=>recipeById(id)?.name).filter(Boolean);
+days.forEach((d,i)=>{const date=addDays(start,i),type=d[1];
+const defaultMeal=type==="Long" ? `Long-run fuel: ${recipeNames[0]||"rice bowl"} + extra carbs` : (type==="Run"||type==="Quality" ? `Training day: ${recipeNames[(i%recipeNames.length)]||"protein bowl"} + measured carbs` : `Rest day: leftovers from ${recipeNames[(i%recipeNames.length)]||"batch cook"} + salad/veg`);
+const row=document.createElement("tr");row.innerHTML=`<td>${fmtDate(date)}</td><td>${dayName(date)}</td><td>${type}</td><td>${d[2]}</td><td>${caloriesForDay(type,w)} kcal</td><td>180 g</td><td contenteditable="true" data-key="w${w}_d${i}_meal">${edits[`w${w}_d${i}_meal`]||defaultMeal}</td><td contenteditable="true" data-key="w${w}_d${i}_done">${edits[`w${w}_d${i}_done`]||""}</td><td contenteditable="true" data-key="w${w}_d${i}_note">${edits[`w${w}_d${i}_note`]||""}</td>`;tbody.appendChild(row)});
+root.appendChild(details);
+
+const food=document.createElement("details");food.className="week anchorTarget";food.id=`food_week_${w}`;if(w===currentWeek())food.open=true;
+const chosen=ids.map(recipeById).filter(Boolean);
+const shop=shoppingForIds(ids);
+food.innerHTML=`<summary><div><span class="badge">Week ${w}</span></div><div><b>${fmtDate(start)} - ${fmtDate(end)}</b><br><span class="phase">${chosen.map(r=>r.cuisine).slice(0,3).join(" / ")}</span></div><div>Weight goal: <b>${targetKg} kg</b></div><div>Calories: <b>${caloriesForDay("Rest",w)}-${caloriesForDay("Long",w)}</b></div><div><span class="small">Protein target 180 g/day</span></div></summary>
+<div class="foodgrid">
+<div class="recipe"><h3>Recipe cards</h3>
+${chosen.map((r,i)=>renderRecipeCard(r,w,["Batch Cook 1","Batch Cook 2","Discovery/Variety","Long-run/Fine dining"][i]||"Recipe")).join("")}
+<div class="recipeCard"><h3>Weekend / fine dining</h3><p>${fineDining[w%fineDining.length]}</p><span class="pill">optional</span><span class="pill">serves 2</span></div>
+</div>
+<div class="recipe"><h3>Shopping list</h3><p class="small">Auto-generated from this week's recipe cards. Edit if you already have staples.</p><div class="shopping" contenteditable="true" data-key="w${w}_shopping">${edits[`w${w}_shopping`]||shop.map(x=>"• "+x).join("<br>")}</div></div>
+</div>`;
+foodRoot.appendChild(food);
+}
+document.querySelectorAll("[contenteditable=true][data-key]").forEach(el=>setEditableListener(el,el.dataset.key));
+for(let w=1;w<=totalWeeks;w++){let a=document.getElementById(`actual_${w}`),n=document.getElementById(`notes_${w}`);if(a)setEditableListener(a,`w${w}_actual`);if(n)setEditableListener(n,`w${w}_notes`)}
+}
+function expandAll(){document.querySelectorAll(".tabPanel.active details.week").forEach(d=>d.open=true)}function collapseAll(){document.querySelectorAll(".tabPanel.active details.week").forEach(d=>d.open=false)}
+function csvEscape(v){return'"'+String(v??"").replaceAll('"','""')+'"'}
+function exportCSV(){const rows=[["Week","Date","Day","Phase","WeeklyWeightGoalKg","Type","Training","Calories","Protein","MealPlan","Done","Notes","ActualWeeklyWeight","WeekNotes","ShoppingList"]];for(let w=1;w<=totalWeeks;w++){const start=addDays(dateObj(CONFIG.startDate),(w-1)*7),phase=phaseForWeek(w),targetKg=weeklyWeightTarget(w).toFixed(1),ids=weeklyRecipeIds(w),shop=shoppingForIds(ids).join("; "),recipeNames=ids.map(id=>recipeById(id)?.name).filter(Boolean);sessionsForWeek(w).forEach((d,i)=>{const date=addDays(start,i),type=d[1],defaultMeal=type==="Long"?`Long-run fuel: ${recipeNames[0]||"rice bowl"} + extra carbs`:(type==="Run"||type==="Quality"?`Training day: ${recipeNames[(i%recipeNames.length)]||"protein bowl"} + measured carbs`:`Rest day: leftovers from ${recipeNames[(i%recipeNames.length)]||"batch cook"} + salad/veg`);rows.push([w,fmtDate(date),dayName(date),phase,targetKg,type,d[2],caloriesForDay(type,w),"180 g",edits[`w${w}_d${i}_meal`]||defaultMeal,edits[`w${w}_d${i}_done`]||"",edits[`w${w}_d${i}_note`]||"",edits[`w${w}_actual`]||"",edits[`w${w}_notes`]||"",edits[`w${w}_shopping`]||shop])})}const csv=rows.map(r=>r.map(csvEscape).join(",")).join("
+"),blob=new Blob([csv],{type:"text/csv"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="marathon_weekly_plan.csv";a.click()}
+function downloadJSON(){const blob=new Blob([JSON.stringify({config:CONFIG,profile:loadProfile(),edits},null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="marathon_weekly_backup.json";a.click()}
+function importJSON(event){const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const payload=JSON.parse(reader.result);edits=payload.edits||{};saveEdits(edits);if(payload.profile)localStorage.setItem("marathonProfileV1",JSON.stringify(payload.profile));render()}catch(e){alert("Could not import JSON backup.")}};reader.readAsText(file)}
+function resetLocal(){if(confirm("Clear saved edits and profile inputs? Fixed plan settings stay locked.")){localStorage.removeItem("marathonWeeklyEditsV2");localStorage.removeItem("marathonProfileV1");edits={};render()}}
+render();
+</script>
+</body>
+</html>
